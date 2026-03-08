@@ -1,0 +1,22 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "Singgah Sebentar - Backend API Server",
+  "main": "server.js",
+  "scripts": {
+    "dev": "nodemon server.js",
+    "start": "node server.js",
+    "migrate": "npx prisma migrate dev",
+    "seed": "node prisma/seed/index.js",
+    "studio": "npx prisma studio",
+    "generate": "npx prisma generate"
+  },
+  "keywords": [],
+  "author": "PixelCraft Studio",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@prisma/client": "^5.22.0",
+    "prisma": "^5.22.0"
+  }
+}
