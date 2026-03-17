@@ -122,6 +122,7 @@ model Table {
   zone        Zone
   qrCodeUrl   String?  @map("qr_code_url") @db.VarChar(255)
   isActive    Boolean  @default(true) @map("is_active")
+  status      String   @default("available") 
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
