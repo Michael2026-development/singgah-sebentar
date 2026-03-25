@@ -7,7 +7,7 @@ import { getTableByNumber } from "@/services/tableService";
 import { getMenus } from "@/services/menuService";
 import { getActiveOrdersByTable, createOrder } from "@/services/orderService";
 import useCartStore from "@/store/cartStore";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, getImageUrl } from "@/lib/utils";
 import { getSocket } from "@/lib/socket";
 import { SOCKET_URL } from "@/lib/constants";
 import { io } from "socket.io-client";
@@ -207,14 +207,8 @@ export default function MenuPage() {
       <main className="flex-1 flex flex-col min-w-0 bg-[#f6f8f6] dark:bg-[#0B1218]">
         {/* Top Header */}
         <header className="h-20 flex items-center justify-between border-b border-slate-200 dark:border-white/5 px-6">
-          <div className="flex items-center gap-3 mr-8">
-            <div className="size-10 rounded-xl bg-[#1dc956] flex items-center justify-center text-[#0B1218] shadow-lg shadow-[#1dc956]/20">
-              <span className="material-symbols-outlined font-bold">coffee</span>
-            </div>
-            <div>
-              <h1 className="font-bold text-lg leading-tight">Singgah</h1>
-              <p className="text-xs text-slate-500 dark:text-[#1dc956]/60 font-medium">Premium Cafe POS</p>
-            </div>
+          <div className="flex items-center mr-8">
+            <img src="/images/1000499734.png" alt="Singgah Sebentar" className="h-24 w-auto object-contain" />
           </div>
           
           <div className="relative w-96 hidden md:block">
@@ -318,7 +312,7 @@ export default function MenuPage() {
                         <img 
                           alt={menu.name} 
                           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
-                          src={menu.imageUrl || fallbackImages[menu.category?.slug] || defaultFallback}
+                          src={getImageUrl(menu.imageUrl) || fallbackImages[menu.category?.slug] || defaultFallback}
                           onError={(e) => {
                             e.target.onerror = null; 
                             e.target.src = fallbackImages[menu.category?.slug] || defaultFallback;
@@ -412,7 +406,7 @@ export default function MenuPage() {
                       <img 
                         alt={item.name} 
                         className="w-full h-full object-cover" 
-                        src={item.imageUrl || fallbackImages[item.category?.slug] || defaultFallback}
+                        src={getImageUrl(item.imageUrl) || fallbackImages[item.category?.slug] || defaultFallback}
                         onError={(e) => {
                           e.target.onerror = null; 
                           e.target.src = fallbackImages[item.category?.slug] || defaultFallback;

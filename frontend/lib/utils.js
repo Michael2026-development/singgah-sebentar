@@ -1,3 +1,5 @@
+import { SOCKET_URL } from "./constants";
+
 export const formatCurrency = (amount) => {
   return new Intl.NumberFormat("id-ID", {
     style: "currency",
@@ -33,4 +35,10 @@ export const formatTime = (date) => {
 
 export const cn = (...classes) => {
   return classes.filter(Boolean).join(" ");
+};
+
+export const getImageUrl = (path) => {
+  if (!path) return null;
+  if (path.startsWith("http")) return path;
+  return `${SOCKET_URL}${path.startsWith('/') ? '' : '/'}${path}`;
 };

@@ -17,9 +17,9 @@ module.exports = {
         "brand-dark": "#0A3613",
         "brand-beige": "#f5f5f1",
         "background-light": "#f6f8f6",
-        "background-dark": "#1A1C1D",
-        "surface-dark": "#242729",
-        "border-dark": "#2d3133",
+        "background-dark": "#0B1218",
+        "surface-dark": "#121A21",
+        "border-dark": "rgba(255,255,255,0.05)",
       },
       fontFamily: {
         "display": ["Inter", "sans-serif"]

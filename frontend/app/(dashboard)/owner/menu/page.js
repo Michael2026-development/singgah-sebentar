@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import useRequireAuth from "@/hooks/useRequireAuth";
 import api from "@/lib/axios";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, getImageUrl } from "@/lib/utils";
 
 export default function KelolaMenuPage() {
   const router = useRouter();
@@ -26,6 +26,17 @@ export default function KelolaMenuPage() {
   });
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
+  const fileInputRef = useRef(null);
+
+  const fallbackImages = {
+    "kopi": "https://images.unsplash.com/photo-1559525839-b184a4d698c7?auto=format&fit=crop&q=80&w=400&h=400",
+    "non-kopi": "https://images.unsplash.com/photo-1544145945-f90425340c7e?auto=format&fit=crop&q=80&w=400&h=400",
+    "minuman-segar": "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&q=80&w=400&h=400",
+    "makanan-berat": "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=400&h=400",
+    "snack-cemilan": "https://images.unsplash.com/photo-1599490659213-e2b9527bd08f?auto=format&fit=crop&q=80&w=400&h=400",
+    "dessert": "https://images.unsplash.com/photo-1551024601-bec78aea704b?auto=format&fit=crop&q=80&w=400&h=400",
+  };
+  const defaultFallback = "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&q=80&w=400&h=400";
 
   const { data: catData } = useQuery({
     queryKey: ["categories"],
@@ -72,7 +83,7 @@ export default function KelolaMenuPage() {
       isSeasonal: menu.isSeasonal,
       availableSizes: parsedSizes,
     });
-    setImagePreview(menu.imageUrl);
+    setImagePreview(getImageUrl(menu.imageUrl) || fallbackImages[menu.category?.slug] || defaultFallback);
     setShowForm(true);
   };
 
@@ -81,6 +92,7 @@ export default function KelolaMenuPage() {
     if (file) {
       setImageFile(file);
       setImagePreview(URL.createObjectURL(file));
+      e.target.value = null; // Clear input to allow re-selection
     }
   };
 
@@ -109,6 +121,9 @@ export default function KelolaMenuPage() {
       queryClient.invalidateQueries({ queryKey: ["menus-admin"] });
       resetForm();
     },
+    onError: (err) => {
+      alert("Terjadi kesalahan saat menyimpan: " + (err.response?.data?.message || err.message));
+    }
   });
 
   const toggleMutation = useMutation({
@@ -166,11 +181,15 @@ export default function KelolaMenuPage() {
               <div key={menu.id} className="bg-white rounded-xl border border-stone-100 p-4">
                 <div className="flex items-center gap-3">
                   <div className="w-16 h-16 rounded-xl bg-stone-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
-                    {menu.imageUrl ? (
-                      <img src={menu.imageUrl} alt={menu.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-2xl">{menu.category?.icon || "🍽️"}</span>
-                    )}
+                    <img 
+                      src={getImageUrl(menu.imageUrl) || fallbackImages[menu.category?.slug] || defaultFallback} 
+                      alt={menu.name} 
+                      className="w-full h-full object-cover" 
+                      onError={(e) => {
+                        e.target.onerror = null; 
+                        e.target.src = fallbackImages[menu.category?.slug] || defaultFallback;
+                      }}
+                    />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
@@ -217,7 +236,7 @@ export default function KelolaMenuPage() {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-stone-700 mb-2">Foto Menu</label>
-                <div onClick={() => document.getElementById("imageInput").click()}
+                <div onClick={() => fileInputRef.current && fileInputRef.current.click()}
                   className="border-2 border-dashed border-stone-300 rounded-xl p-4 text-center cursor-pointer hover:border-green-400 transition-colors">
                   {imagePreview ? (
                     <img src={imagePreview} alt="preview" className="w-full h-32 object-cover rounded-lg" />
@@ -229,7 +248,7 @@ export default function KelolaMenuPage() {
                     </div>
                   )}
                 </div>
-                <input id="imageInput" type="file" accept="image/*" onChange={handleImage} className="hidden" />
+                <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImage} className="hidden" />
               </div>
 
               <div>

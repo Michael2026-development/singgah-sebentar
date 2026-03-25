@@ -18,6 +18,17 @@ export default function KasirDashboard() {
   const [activeTab, setActiveTab] = useState("pending");
   const [notification, setNotification] = useState(null);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  
+  // Payment Modal States
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [paymentOrder, setPaymentOrder] = useState(null);
+  const [paymentMethod, setPaymentMethod] = useState(null);
+  const [amountTendered, setAmountTendered] = useState("");
+
+  const handleAmountChange = (e) => {
+    const val = e.target.value.replace(/\D/g, '');
+    setAmountTendered(val);
+  };
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 8;
@@ -134,13 +145,10 @@ export default function KasirDashboard() {
     <div className="bg-[#0B1218] text-slate-300 min-h-screen flex flex-col overflow-x-hidden font-display dark">
       {/* Top Navigation Bar */}
       <header className="sticky top-0 z-50 w-full border-b border-white/5 bg-[#121A21]">
-        <div className="max-w-[1440px] mx-auto px-4 md:px-8 h-16 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-8">
+        <div className="max-w-[1440px] mx-auto px-4 md:px-8 h-20 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
             <div className="flex items-center gap-3 cursor-pointer" onClick={() => router.push(user.role === 'kasir' ? '/kasir' : `/${user.role}`)}>
-              <div className="size-9 bg-primary flex items-center justify-center rounded-lg text-background-dark">
-                <span className="material-symbols-outlined text-2xl font-bold">local_cafe</span>
-              </div>
-              <h1 className="text-xl font-bold tracking-tight text-white hidden sm:block">Singgah</h1>
+              <img src="/images/1000499734.png" alt="Singgah Sebentar" className="h-24 w-auto object-contain" />
             </div>
             {/* Shift Info */}
             <div className="hidden lg:flex items-center gap-6 border-l border-white/10 pl-8">
@@ -360,7 +368,12 @@ export default function KasirDashboard() {
                         </div>
                       ) : order.payment?.method === "cash" && order.payment?.status !== "paid" ? (
                         <button 
-                          onClick={() => cashMutation.mutate(order.id)}
+                          onClick={() => {
+                            setPaymentOrder(order);
+                            setPaymentMethod("cash");
+                            setAmountTendered("");
+                            setPaymentModalOpen(true);
+                          }}
                           disabled={cashMutation.isPending}
                           className="py-3 px-3 w-full rounded-xl bg-green-700/80 hover:bg-green-600 text-green-50 text-sm font-bold active:scale-[0.98] transition-all disabled:opacity-50 flex flex-col items-center justify-center gap-1.5 border border-green-600/50"
                         >
@@ -369,7 +382,11 @@ export default function KasirDashboard() {
                         </button>
                       ) : order.payment?.method === "qris" && order.payment?.status !== "paid" ? (
                          <button 
-                          onClick={() => qrisMutation.mutate({ orderId: order.id, ref: '' })}
+                          onClick={() => {
+                            setPaymentOrder(order);
+                            setPaymentMethod("qris");
+                            setPaymentModalOpen(true);
+                          }}
                           disabled={qrisMutation.isPending}
                           className="py-3 px-3 w-full rounded-xl bg-blue-600/80 hover:bg-blue-500 text-blue-50 text-sm font-bold active:scale-[0.98] transition-all disabled:opacity-50 flex flex-col items-center justify-center gap-1.5 border border-blue-500/50"
                          >
@@ -512,10 +529,228 @@ export default function KasirDashboard() {
           </div>
         </section>
 
+        {/* PAYMENT CONFIRMATION MODAL */}
+        {paymentModalOpen && paymentOrder && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <div className="bg-[#121A21] border border-white/10 rounded-2xl w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col overflow-hidden max-h-[95vh]">
+              <div className="p-6 border-b border-white/10 bg-[#0B1218] shrink-0 text-center relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-primary/50 to-transparent"></div>
+                <h2 className="text-xl font-bold text-white mb-3">
+                  Konfirmasi Pembayaran
+                </h2>
+                <div className="flex items-center justify-center gap-3">
+                  <div className="bg-white/5 border border-white/10 px-3 py-1.5 rounded-lg flex items-center gap-1.5 shadow-sm">
+                    <span className="text-[10px] text-slate-400 uppercase font-bold tracking-widest">
+                      ORDER
+                    </span>
+                    <span className="text-xs font-black text-slate-200 uppercase tracking-widest">
+                      #{paymentOrder.orderNumber}
+                    </span>
+                  </div>
+                  <div className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 border shadow-sm ${
+                    paymentMethod === "cash" ? "bg-green-500/10 border-green-500/20 text-green-400" : "bg-blue-500/10 border-blue-500/20 text-blue-400"
+                  }`}>
+                    <span className="material-symbols-outlined text-[16px]">
+                      {paymentMethod === "cash" ? "payments" : "qr_code_scanner"}
+                    </span>
+                    <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400">
+                      METODE
+                    </span>
+                    <span className="text-xs font-black uppercase tracking-widest">
+                      {paymentMethod}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-5 space-y-5 overflow-y-auto custom-scrollbar flex-1">
+                {/* Table Info */}
+                <div className="bg-black/20 rounded-xl p-3 border border-white/5 flex items-center gap-3">
+                  <span className="material-symbols-outlined text-primary text-[20px]">table_restaurant</span>
+                  {paymentOrder.table ? (
+                    <div className="flex items-center gap-2">
+                       <span className="text-sm font-bold text-white">Meja {paymentOrder.table.tableNumber}</span>
+                       <span className={`text-[10px] px-2 py-0.5 rounded-md uppercase font-bold tracking-widest border ${
+                         paymentOrder.table.zone.toLowerCase() === 'vip' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' :
+                         paymentOrder.table.zone.toLowerCase() === 'outdoor' ? 'bg-primary/10 text-primary border-primary/20' :
+                         'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                       }`}>
+                         {paymentOrder.table.zone}
+                       </span>
+                    </div>
+                  ) : (
+                    <span className="text-sm font-bold text-white">Takeaway / Kasir</span>
+                  )}
+                </div>
+
+                {/* Items List */}
+                <div className="bg-black/10 rounded-xl border border-white/5 overflow-hidden flex flex-col">
+                  <div className="p-2.5 border-b border-white/5 bg-white/5">
+                    <h3 className="text-xs font-bold text-slate-300 flex items-center gap-2">
+                       <span className="material-symbols-outlined text-sm text-slate-400">receipt_long</span>
+                       Daftar Pesanan ({paymentOrder.orderItems?.reduce((ac, it) => ac + it.quantity, 0)})
+                    </h3>
+                  </div>
+                  <ul className="max-h-[35vh] overflow-y-auto custom-scrollbar p-3 space-y-2">
+                    {paymentOrder.orderItems?.map((item, idx) => {
+                      const noteVal = item.specialNote || "";
+                      const isSizeNote = noteVal.startsWith("Size: ");
+                      let sizeDisplay = null;
+                      let standardNote = noteVal;
+                      if (isSizeNote) {
+                        const parts = noteVal.split(" | ");
+                        sizeDisplay = parts[0].replace("Size: ", "").trim();
+                        standardNote = parts[1] || "";
+                      }
+                      return (
+                        <li key={idx} className="flex flex-col text-xs border-b border-white/5 pb-2 last:border-0 last:pb-0">
+                          <div className="flex justify-between items-start">
+                            <span className="text-slate-300 font-medium leading-snug">
+                              <span className="font-bold text-white mr-1.5">{item.quantity}x</span>
+                              {item.menu?.name}
+                            </span>
+                            <span className="font-bold shrink-0 text-slate-400 ml-2">{formatCurrency(Number(item.subtotal))}</span>
+                          </div>
+                          {(sizeDisplay || standardNote) && (
+                            <div className="ml-5 mt-1 flex flex-col gap-0.5">
+                              {sizeDisplay && (
+                                <span className="inline-block w-max px-1.5 py-px rounded bg-white/5 text-[9px] font-bold text-slate-400 uppercase tracking-widest border border-white/10">
+                                  {sizeDisplay}
+                                </span>
+                              )}
+                              {standardNote && (
+                                <span className="text-[10px] text-yellow-500/80 italic flex items-start gap-1">
+                                  <span className="material-symbols-outlined text-[12px]">edit_note</span>
+                                  {standardNote}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  <div className="p-3 bg-white/5 border-t border-white/5 flex justify-between items-center shadow-inner">
+                    <span className="text-xs font-bold text-slate-400">Total Tagihan</span>
+                    <span className="text-primary font-black text-lg">{formatCurrency(Number(paymentOrder.totalAmount))}</span>
+                  </div>
+                </div>
+
+                {paymentMethod === "cash" ? (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-bold text-slate-300 mb-2">
+                        Jumlah Uang Cash (Rp)
+                      </label>
+                      <input
+                        type="text"
+                        value={
+                          amountTendered
+                            ? formatCurrency(amountTendered)
+                                .replace("Rp", "")
+                                .trim()
+                            : ""
+                        }
+                        onChange={handleAmountChange}
+                        placeholder="0"
+                        className="w-full bg-[#0B1218] border border-white/10 rounded-xl px-4 py-3.5 text-white text-lg font-bold focus:ring-2 focus:ring-primary focus:outline-none placeholder:text-slate-600 transition-shadow"
+                        autoFocus
+                      />
+                    </div>
+
+                    <div className="p-4 rounded-xl border flex justify-between items-center bg-[#0B1218] border-white/10">
+                      <span className="text-sm font-bold text-slate-400">
+                        Kembalian
+                      </span>
+                      <span
+                        className={`text-2xl font-black ${
+                          Number(amountTendered) >=
+                          Number(paymentOrder.totalAmount)
+                            ? "text-green-400"
+                            : "text-red-400"
+                        }`}
+                      >
+                        {amountTendered || Number(amountTendered) === 0
+                          ? formatCurrency(
+                              Math.max(
+                                0,
+                                Number(amountTendered) -
+                                  Number(paymentOrder.totalAmount)
+                              )
+                            )
+                          : "Rp 0"}
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-blue-500/10 border border-blue-500/20 p-5 rounded-xl text-center space-y-3">
+                    <div className="mx-auto size-14 bg-blue-500/20 rounded-full flex items-center justify-center text-blue-400 mb-2 shadow-inner">
+                      <span className="material-symbols-outlined text-3xl">
+                        qr_code_scanner
+                      </span>
+                    </div>
+                    <h3 className="text-white font-bold text-lg">
+                      Instruksi QRIS
+                    </h3>
+                    <p className="text-sm text-slate-300 leading-relaxed max-w-[250px] mx-auto">
+                      Pastikan customer telah memindai kode QRIS dan nominal
+                      pembayaran yang masuk sesuai dengan total tagihan
+                      <strong className="text-white block mt-2 text-lg">
+                        {formatCurrency(Number(paymentOrder.totalAmount))}
+                      </strong>
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-4 border-t border-white/10 flex items-center gap-3 bg-[#0B1218]">
+                <button
+                  onClick={() => setPaymentModalOpen(false)}
+                  className="flex-1 py-3.5 px-4 rounded-xl text-sm font-bold text-slate-400 hover:text-white hover:bg-white/5 transition-all border border-white/5"
+                >
+                  Batal
+                </button>
+                <button
+                  disabled={
+                    (paymentMethod === "cash" &&
+                      (!amountTendered ||
+                        Number(amountTendered) <
+                          Number(paymentOrder.totalAmount))) ||
+                    cashMutation.isPending ||
+                    qrisMutation.isPending
+                  }
+                  onClick={() => {
+                    if (paymentMethod === "cash")
+                      cashMutation.mutate(paymentOrder.id);
+                    if (paymentMethod === "qris")
+                      qrisMutation.mutate({ orderId: paymentOrder.id, ref: "" });
+                    setPaymentModalOpen(false);
+                    window.print(); // Basic print intent placeholder
+                  }}
+                  className="flex-1 py-3.5 px-4 rounded-xl bg-primary text-background-dark text-sm font-bold flex items-center justify-center gap-2 hover:bg-primary/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_15px_rgba(29,201,86,0.3)]"
+                >
+                  <span className="material-symbols-outlined text-lg">
+                    print
+                  </span>
+                  {paymentMethod === "cash"
+                    ? "Proses & Cetak"
+                    : "Verifikasi & Cetak"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* MODAL MORE INFO */}
         {selectedOrder && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setSelectedOrder(null)}>
-            <div className="bg-[#121A21] border border-white/10 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            onClick={() => setSelectedOrder(null)}
+          >
+            <div
+              className="bg-[#121A21] border border-white/10 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+              onClick={(e) => e.stopPropagation()}
+            >
               <div className="p-5 border-b border-white/10 flex items-center justify-between bg-black/20">
                 <div>
                   <h2 className="text-xl font-bold text-white">Detail Pesanan</h2>
@@ -531,10 +766,23 @@ export default function KasirDashboard() {
                 <div className="grid grid-cols-2 gap-4 mb-6">
                   <div className="bg-black/20 rounded-xl p-3 border border-white/5">
                     <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1 block">Pelanggan</span>
-                    <p className="text-sm font-bold text-white flex items-center gap-2">
+                    <div className="flex items-center gap-2">
                        <span className="material-symbols-outlined text-primary text-[18px]">table_restaurant</span>
-                       {selectedOrder.table ? `Meja ${selectedOrder.table.tableNumber} (${selectedOrder.table.zone})` : "Takeaway / Kasir"}
-                    </p>
+                       {selectedOrder.table ? (
+                         <div className="flex items-center gap-2">
+                           <span className="text-sm font-bold text-white">Meja {selectedOrder.table.tableNumber}</span>
+                           <span className={`text-[10px] px-2 py-0.5 rounded-md uppercase font-bold tracking-widest border ${
+                             selectedOrder.table.zone.toLowerCase() === 'vip' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' :
+                             selectedOrder.table.zone.toLowerCase() === 'outdoor' ? 'bg-primary/10 text-primary border-primary/20' :
+                             'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                           }`}>
+                             {selectedOrder.table.zone}
+                           </span>
+                         </div>
+                       ) : (
+                         <span className="text-sm font-bold text-white">Takeaway / Kasir</span>
+                       )}
+                    </div>
                   </div>
                   <div className="bg-black/20 rounded-xl p-3 border border-white/5">
                     <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1 block">Status Pembayaran</span>
