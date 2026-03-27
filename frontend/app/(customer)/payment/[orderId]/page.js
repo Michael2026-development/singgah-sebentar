@@ -43,6 +43,33 @@ export default function PaymentPage() {
 
   const isPaid = payment.status === "paid";
   const isQris = payment.method === "qris";
+  const isCancelled = order.status === "cancelled";
+
+  if (isCancelled) {
+    return (
+      <div className="min-h-screen bg-stone-50 flex flex-col pt-32">
+        <div className="px-6 text-center">
+          <div className="w-24 h-24 mx-auto bg-red-100 text-red-500 rounded-[2rem] flex items-center justify-center mb-6 shadow-[-10px_10px_30px_rgba(239,68,68,0.1)]">
+            <span className="material-symbols-outlined text-[54px]">cancel</span>
+          </div>
+          <h1 className="text-2xl font-black text-stone-800 mb-3 tracking-tight">
+            Pesanan Dibatalkan
+          </h1>
+          <p className="text-stone-500 mb-10 max-w-[280px] mx-auto text-sm leading-relaxed">
+            Pesanan Anda telah dibatalkan oleh kasir. Silakan buat pesanan baru jika ada perubahan.
+          </p>
+          
+          <button
+            onClick={() => router.push(`/menu/${order.table?.tableNumber || ""}`)}
+            className="w-full bg-[#1b9a4c] hover:bg-[#15af48] text-white font-bold py-4 rounded-xl shadow-lg shadow-[#1b9a4c]/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+          >
+            <span className="material-symbols-outlined text-[20px]">restaurant_menu</span>
+            Buat Pesanan Baru
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-stone-50 pb-10">

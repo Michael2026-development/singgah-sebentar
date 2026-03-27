@@ -2,13 +2,16 @@ const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
+const path = require("path");
 const { errorHandler, notFound } = require("./middleware/errorHandler.middleware");
 const app = express();
 const staffRoutes = require("./routes/staff.routes");
 const reportRoutes = require("./routes/report.routes");
 
 // Security middleware
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
 
 // CORS
 app.use(cors({
@@ -50,6 +53,9 @@ app.get("/", (req, res) => {
     version: "1.0.0",
   });
 });
+
+// Serve static uploads folder
+app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
 // Routes
 app.use("/api/auth", require("./routes/auth.routes"));

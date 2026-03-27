@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import useRequireAuth from "@/hooks/useRequireAuth";
-import { getOrders, confirmOrder } from "@/services/orderService";
+import { getOrders, confirmOrder, updateOrderStatus } from "@/services/orderService";
 import { confirmCashPayment, confirmQrisPayment } from "@/services/paymentService";
 import { getTables, updateTableStatus } from "@/services/tableService";
 import { connectSocket, disconnectSocket } from "@/lib/socket";
@@ -97,6 +97,14 @@ export default function KasirDashboard() {
   const confirmMutation = useMutation({
     mutationFn: (orderId) => confirmOrder(orderId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["orders"] }),
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: (orderId) => updateOrderStatus(orderId, "cancelled"),
+    onSuccess: () => {
+       queryClient.invalidateQueries({ queryKey: ["orders"] });
+       queryClient.invalidateQueries({ queryKey: ["kasir-tables"] });
+    },
   });
 
   const cashMutation = useMutation({
@@ -352,17 +360,31 @@ export default function KasirDashboard() {
                         <div className="flex flex-col gap-3">
                           <button 
                             onClick={() => confirmMutation.mutate(order.id)}
-                            disabled={confirmMutation.isPending}
+                            disabled={confirmMutation.isPending || cancelMutation.isPending}
                             className="py-3 px-2 w-full rounded-xl bg-primary/90 hover:bg-primary text-background-dark text-sm font-bold active:scale-[0.98] transition-all disabled:opacity-50 flex flex-col items-center justify-center gap-1.5 border border-primary/50 drop-shadow-sm"
                           >
-                            <span className="material-symbols-outlined text-2xl drop-shadow-sm">check_circle</span>
-                            <span className="leading-tight text-center">{confirmMutation.isPending ? "..." : "Terima"}</span>
+                            <span className="material-symbols-outlined text-xl drop-shadow-sm">check_circle</span>
+                            <span className="leading-tight text-center">{confirmMutation.isPending && confirmMutation.variables === order.id ? "..." : "Terima"}</span>
                           </button>
+                          
                           <button 
-                             onClick={() => setSelectedOrder(order)}
-                             className="py-3 px-2 w-full rounded-xl border border-white/10 text-sm font-bold text-slate-400 hover:bg-white/10 hover:text-white transition-all flex flex-col items-center justify-center gap-1.5"
+                            onClick={() => {
+                              if (confirm("Yakin ingin membatalkan pesanan ini?")) {
+                                cancelMutation.mutate(order.id);
+                              }
+                            }}
+                            disabled={cancelMutation.isPending || confirmMutation.isPending}
+                            className="py-3 px-2 w-full rounded-xl border border-red-500/20 text-sm font-bold text-red-500 hover:bg-red-500/20 hover:text-red-400 transition-all flex flex-col items-center justify-center gap-1.5 disabled:opacity-50"
                           >
-                            <span className="material-symbols-outlined text-2xl drop-shadow-sm">receipt_long</span>
+                            <span className="material-symbols-outlined text-xl drop-shadow-sm">cancel</span>
+                            <span className="leading-tight text-center">{cancelMutation.isPending && cancelMutation.variables === order.id ? "..." : "Batal"}</span>
+                          </button>
+
+                          <button 
+                            onClick={() => setSelectedOrder(order)}
+                            className="py-3 px-2 w-full rounded-xl border border-white/10 text-sm font-bold text-slate-400 hover:bg-white/10 hover:text-white transition-all flex flex-col items-center justify-center gap-1.5"
+                          >
+                            <span className="material-symbols-outlined text-xl drop-shadow-sm">receipt_long</span>
                             <span className="leading-tight text-center">Detail</span>
                           </button>
                         </div>

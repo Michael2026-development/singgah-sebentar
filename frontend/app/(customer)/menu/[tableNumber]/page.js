@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { getTableByNumber } from "@/services/tableService";
@@ -12,6 +12,107 @@ import { getSocket } from "@/lib/socket";
 import { SOCKET_URL } from "@/lib/constants";
 import { io } from "socket.io-client";
 
+const SwipeToConfirm = ({ onConfirm, loading, success, disabled }) => {
+  const [unlocked, setUnlocked] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [sliderLeft, setSliderLeft] = useState(0);
+  
+  const containerRef = useRef(null);
+  const knobWidth = 48; // h-[48px] w-[48px]
+
+  useEffect(() => {
+    if (success) {
+      setUnlocked(true);
+    }
+  }, [success]);
+
+  const handleDrag = (clientX) => {
+    if (unlocked || disabled || loading || success) return;
+    const container = containerRef.current;
+    if (!container) return;
+
+    const maxLeft = container.offsetWidth - knobWidth - 12; // 6px padding on each side
+    let newLeft = clientX - container.getBoundingClientRect().left - knobWidth / 2;
+    
+    if (newLeft < 0) newLeft = 0;
+    if (newLeft >= maxLeft) {
+      newLeft = maxLeft;
+      setUnlocked(true);
+      onConfirm();
+    }
+    setSliderLeft(newLeft);
+  };
+
+  const handlePointerDown = (e) => {
+    if (disabled || loading || success) return;
+    setIsDragging(true);
+    e.target.setPointerCapture(e.pointerId);
+  };
+
+  const handlePointerMove = (e) => {
+    if (isDragging) {
+      handleDrag(e.clientX);
+    }
+  };
+
+  const handlePointerUp = (e) => {
+    if (!isDragging) return;
+    setIsDragging(false);
+    e.target.releasePointerCapture(e.pointerId);
+    if (!unlocked && !success) {
+      setSliderLeft(0);
+    }
+  };
+
+  useEffect(() => {
+    if (!loading && unlocked && !success) {
+      setUnlocked(false);
+      setSliderLeft(0);
+    }
+  }, [loading, unlocked, success]);
+
+  return (
+    <div 
+      ref={containerRef}
+      className={`relative flex items-center h-[60px] rounded-full overflow-hidden transition-all bg-[#1b9a4c] ${disabled && !success ? "opacity-40 pointer-events-none" : "shadow-[0_4px_15px_rgba(27,154,76,0.35)]"}`}
+    >
+      <div className={`absolute w-full text-center z-0 flex flex-col items-center justify-center pointer-events-none select-none transition-opacity duration-300 ${unlocked || success ? "opacity-0" : "opacity-100"}`}>
+         <span className="text-white font-bold text-[18px] leading-none mb-1 drop-shadow-sm">
+           {loading ? "Processing..." : "Place Order"}
+         </span>
+         <span className={`text-white/80 font-medium text-[13px] leading-none drop-shadow-sm ${(!unlocked && !loading && !disabled) ? "animate-pulse" : ""}`}>
+           {loading ? "Please wait" : "Slide to confirm"}
+         </span>
+      </div>
+
+      <div
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        className={`absolute left-[6px] top-[6px] z-30 flex h-[48px] w-[48px] items-center justify-center rounded-full bg-white text-[#2cd070] shadow-lg select-none touch-none cursor-grab active:cursor-grabbing transition-opacity ${success ? 'opacity-0' : 'opacity-100'}`}
+        style={{ 
+           transform: `translateX(${sliderLeft}px)`, 
+           transition: isDragging ? 'none' : 'transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)' 
+        }}
+      >
+        <span className="material-symbols-outlined font-black text-2xl" style={{ textShadow: "0 2px 4px rgba(44,208,112,0.3)" }}>
+          {loading ? "hourglass_empty" : "arrow_forward"}
+        </span>
+      </div>
+
+      {success && (
+         <div className="absolute inset-0 z-20 flex items-center justify-center whitespace-nowrap px-4 bg-[#1b9a4c] animate-fade-in">
+            <span className="flex items-center gap-1.5 text-[14px] font-bold uppercase tracking-wide text-white drop-shadow-md">
+               <span className="material-symbols-outlined text-[18px]">check_circle</span>
+               BERHASIL DIKONFIRMASI
+            </span>
+         </div>
+      )}
+    </div>
+  );
+};
+
 export default function MenuPage() {
   const { tableNumber } = useParams();
   const router = useRouter();
@@ -21,6 +122,7 @@ export default function MenuPage() {
   // Advanced Flow States
   const [kitchenNote, setKitchenNote] = useState("");
   const [loading, setLoading] = useState(false);
+  const [orderSuccess, setOrderSuccess] = useState(false);
   const [error, setError] = useState("");
 
   // Store selections before adding to cart: menuId -> { size }
@@ -151,12 +253,24 @@ export default function MenuPage() {
       };
 
       const res = await createOrder(orderData);
-      clearCart();
-      router.push(`/payment/${res.data.id}`);
+      
+      const socket = getSocket();
+      if (socket) {
+         socket.emit("new_order", { orderId: res.data.id, tableNumber });
+      }
+
+      setOrderSuccess(true);
+      setLoading(false);
+
+      setTimeout(() => {
+        clearCart();
+        router.push(`/payment/${res.data.id}`);
+      }, 2500);
+
     } catch (err) {
       setError(err.response?.data?.message || "Gagal membuat pesanan");
-    } finally {
       setLoading(false);
+      setOrderSuccess(false);
     }
   };
 
@@ -196,15 +310,19 @@ export default function MenuPage() {
   const defaultFallback = "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&q=80&w=400&h=400";
 
   return (
-    <div className="bg-[#f6f8f6] dark:bg-[#0B1218] text-slate-900 dark:text-slate-100 font-display selection:bg-[#1dc956]/30 h-screen w-full overflow-hidden flex">
+    <div className="bg-[#f6f8f6] dark:bg-[#0B1218] text-slate-900 dark:text-slate-100 font-display selection:bg-[#1dc956]/30 h-screen w-full overflow-hidden flex relative">
       <style>{`
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
       `}</style>
+      
+      {/* Global Dimming Overlay */}
+      <div className={`fixed inset-0 bg-black/70 backdrop-blur-md transition-opacity duration-1000 z-30 ${orderSuccess ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`} />
+
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col min-w-0 bg-[#f6f8f6] dark:bg-[#0B1218]">
+      <main className="flex-1 flex flex-col min-w-0 bg-[#f6f8f6] dark:bg-[#0B1218] relative z-10 transition-all duration-1000">
         {/* Top Header */}
         <header className="h-20 flex items-center justify-between border-b border-slate-200 dark:border-white/5 px-6">
           <div className="flex items-center mr-8">
@@ -366,7 +484,7 @@ export default function MenuPage() {
       </main>
 
       {/* Right Sidebar (Order Summary/Cart) */}
-      <aside className="w-96 flex-shrink-0 flex flex-col bg-white dark:bg-[#0E161E] border-l border-slate-200 dark:border-white/5 z-20">
+      <aside className={`w-96 flex-shrink-0 flex flex-col bg-white dark:bg-[#0E161E] transition-all duration-1000 ${orderSuccess ? 'z-40 ring-1 ring-[#3de080]/30 shadow-[0_0_100px_rgba(42,157,92,0.15)] shadow-amber-500/10' : 'z-20 border-l border-slate-200 dark:border-white/5'}`}>
         <div className="p-6 border-b border-slate-200 dark:border-white/5">
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-xl font-bold">Meja {table?.tableNumber || "-"}</h2>
@@ -503,24 +621,12 @@ export default function MenuPage() {
           
           <div className="gap-2 block">
             {error && <p className="text-red-500 text-xs mb-2 font-medium text-center">{error}</p>}
-            <button 
-              onClick={handleCheckout}
-              disabled={loading || items.length === 0 || hasActiveOrder}
-              className="relative flex items-center justify-between w-full h-16 px-2 rounded-full transition-all hover:brightness-110 active:scale-[0.98] shadow-lg shadow-black/20 group bg-[#1dc956] disabled:opacity-50 disabled:pointer-events-none"
-            >
-              <div className="flex items-center justify-center h-12 w-12 bg-white rounded-full text-[#1dc956]">
-                <span className="material-symbols-outlined font-bold">
-                  {loading ? "hourglass_empty" : "arrow_forward"}
-                </span>
-              </div>
-              <div className="flex items-center gap-4 text-white">
-                <span className="text-lg font-bold">{loading ? "Processing..." : "Place Order"}</span>
-                <span className="text-lg font-medium opacity-90">{formatCurrency(totalAmount)}</span>
-              </div>
-              <div className="flex items-center pr-4 text-white/30 group-hover:text-white/50 transition-colors">
-                <span className="text-lg font-light tracking-[-4px]">{'>>>'}</span>
-              </div>
-            </button>
+            <SwipeToConfirm 
+              onConfirm={handleCheckout} 
+              loading={loading} 
+              success={orderSuccess}
+              disabled={loading || orderSuccess || items.length === 0 || hasActiveOrder} 
+            />
           </div>
         </div>
       </aside>

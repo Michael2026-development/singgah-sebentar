@@ -284,6 +284,12 @@ const updateOrderStatus = async (req, res) => {
         data: { status: "occupied" },
       });
       emitTableStatusUpdate(updatedTable);
+    } else if (status === "cancelled") {
+      const updatedTable = await prisma.table.update({
+        where: { id: order.tableId },
+        data: { status: "available" },
+      });
+      emitTableStatusUpdate(updatedTable);
     }
 
     logger.info(`Order status update: ${order.orderNumber} → ${status}`);
